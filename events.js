@@ -16,14 +16,20 @@ const provider = new Web3.providers.HttpProvider(host)
 
 const web3 = new Web3(provider);
 
-const eventName = 'updateContract';
+//const eventNameSignature = 'updateContract(string, uint256)';
+const eventNameSignatureHash = web3.sha3('updateContract(string)');
+console.log("looking for: %s", eventNameSignatureHash)
 
 var filterOptions = {
-  fromBlock: 20728, toBlock: 'latest',
+  fromBlock: 21384, toBlock: 'latest',
   topics: [
-    web3.sha3(`${eventName}(string)`)
+    eventNameSignatureHash
   ]
 }
+
+// var filterOptions = {
+//   fromBlock: 21384, toBlock: 21385
+// }
 
 // var filter = web3.eth.filter();
 var filter = web3.eth.filter(filterOptions);
@@ -36,7 +42,9 @@ filter.watch(function (error, logs) {
   }
   else {
     console.log("New Log: %s", JSON.stringify(logs));
-    return processLog(logs);
+    var rv = processLog(logs);
+    console.log("event: %s:", rv.event)
+    console.log("args : %s:", JSON.stringify(rv.args))
   }
 });
 
@@ -45,40 +53,8 @@ function processLog(logs){
   return rv;
 }
 
-
-function processWorkItem(workItem) {
-  winston.debug('processing workitem')
-  if (workItem === undefined) {
-    return;
-  }
-
-  processTransaction(workItem.txHash).then(function (result) {
-    winston.debug(`Transaction ${workItem.txHash} processed successfully.`);
-    processWorkItem(queue.shift());
-  }, function (err) {
-    winston.error(err);
-    var next = queue.shift();
-    queue.push(workItem);
-    processWorkItem(next);
-  });
-}
-
-
 // XXX move this to a hook function
 const SolidityEvent = require("web3/lib/web3/event.js");
-
-function logRead(obj, eventName, abi) {
-  var events = abi.filter(function (json) {
-    return json.type === 'event' && json.name === eventName;
-  }).map(function (json) {
-    winston.debug('mapping %s', json.name);
-    var solEvent = new SolidityEvent(null, json, null);
-    if (solEvent)
-      return solEvent;
-  })
-  return events;
-}
-
 
 function logParser(log, abi) {
 
@@ -97,105 +73,105 @@ function logParser(log, abi) {
   
 }
 
-function processTransaction(txHash) {
-  winston.debug('processTransaction %s', txHash)
-  return new Promise((resolve, reject) => {
-    winston.debug(`Processing transaction ${txHash}`);
-    var receipt = web3.eth.getTransactionReceipt(txHash);
-    if (receipt != null) {
-      //winston.debug('txReceipt:', receipt);
+// function processTransaction(txHash) {
+//   winston.debug('processTransaction %s', txHash)
+//   return new Promise((resolve, reject) => {
+//     winston.debug(`Processing transaction ${txHash}`);
+//     var receipt = web3.eth.getTransactionReceipt(txHash);
+//     if (receipt != null) {
+//       //winston.debug('txReceipt:', receipt);
 
-      // TODO: figure out the event read
-      winston.debug('doing the log read')
-      var tx = web3.eth.getTransaction(txHash);
-      winston.debug('TX: ', tx);
-      var evt = logRead(tx, eventName, ssAbi);//.then(function(r){
-      var decoded = logParser()
-      //   console.log(r);
-      // });
-      winston.debug('the event: %s', evt)
-      winston.debug('end of logread')
-      // TODO: end
+//       // TODO: figure out the event read
+//       winston.debug('doing the log read')
+//       var tx = web3.eth.getTransaction(txHash);
+//       winston.debug('TX: ', tx);
+//       var evt = logRead(tx, eventName, ssAbi);//.then(function(r){
+//       var decoded = logParser()
+//       //   console.log(r);
+//       // });
+//       winston.debug('the event: %s', evt)
+//       winston.debug('end of logread')
+//       // TODO: end
 
-      //If specified, this is a new contract deployment, otherwise, it is a contract update
-      var contractAddress;
-      var isUpdate = true;
+//       //If specified, this is a new contract deployment, otherwise, it is a contract update
+//       var contractAddress;
+//       var isUpdate = true;
 
-      if (receipt.contractAddress) {
-        contractAddress = receipt.contractAddress;
-        winston.info(`Contract deployed at address ${contractAddress.toString('hex')}`);
-        isUpdate = false;
-      } else {
-        contractAddress = receipt.to;
-        winston.info(`Contract updated at address ${contractAddress.toString('hex')}`);
-        isUpdate = true;
-      }
-    }
+//       if (receipt.contractAddress) {
+//         contractAddress = receipt.contractAddress;
+//         winston.info(`Contract deployed at address ${contractAddress.toString('hex')}`);
+//         isUpdate = false;
+//       } else {
+//         contractAddress = receipt.to;
+//         winston.info(`Contract updated at address ${contractAddress.toString('hex')}`);
+//         isUpdate = true;
+//       }
+//     }
 
-  });
-}
-
-
-function cacheBlockInfo(blockNumber, blockHash) {
-  return new Promise(function (resolve, reject) {
-    //TODO: Save this information locally or in db
-    winston.info('Block: ' + blockNumber.toString() + ', ' + blockHash.toString());
-    resolve();
-  });
-}
-
-function queueBlock(block) {
-  winston.debug('queue block')
-  var txCount = block.transactions.length;
-  for (var i = 0; i < txCount; i++) {
-    var tx = block.transactions[i];
-    queueTransaction(block, tx.hash);
-  }
-  winston.debug('done queue block')
-}
-
-function processQueue() {
-  winston.debug('processQueue...')
-  if (queue) {
-    winston.debug('calling processWorkItem')
-    processWorkItem(queue.shift());
-  }
-  winston.debug('processQueue done...')
-}
+//   });
+// }
 
 
+// function cacheBlockInfo(blockNumber, blockHash) {
+//   return new Promise(function (resolve, reject) {
+//     //TODO: Save this information locally or in db
+//     winston.info('Block: ' + blockNumber.toString() + ', ' + blockHash.toString());
+//     resolve();
+//   });
+// }
 
-function processWorkItem(workItem) {
-  winston.debug('processWorkItem')
-  if (workItem === undefined) {
-    winston.debug('processWorkItem - no workItem ')
-    return;
-  }
+// function queueBlock(block) {
+//   winston.debug('queue block')
+//   var txCount = block.transactions.length;
+//   for (var i = 0; i < txCount; i++) {
+//     var tx = block.transactions[i];
+//     queueTransaction(block, tx.hash);
+//   }
+//   winston.debug('done queue block')
+// }
 
-  winston.debug('calling processTransaction')
-  processTransaction(workItem.txHash).then(function (result) {
-    winston.debug(`Transaction ${workItem.txHash} processed successfully.`);
-    processWorkItem(queue.shift());
-  }, function (err) {
-    winston.error(err);
-    var next = queue.shift();
-    queue.push(workItem);
-    processWorkItem(next);
-  });
-}
+// function processQueue() {
+//   winston.debug('processQueue...')
+//   if (queue) {
+//     winston.debug('calling processWorkItem')
+//     processWorkItem(queue.shift());
+//   }
+//   winston.debug('processQueue done...')
+// }
 
-function queueTransaction(block, txHash) {
-  var workItem = {
-    block: block,
-    txHash: txHash
-  }
 
-  if (queue === undefined) {
-    queue = [workItem];
-  } else {
-    queue.push(workItem);
-  }
-}
+
+// function processWorkItem(workItem) {
+//   winston.debug('processWorkItem')
+//   if (workItem === undefined) {
+//     winston.debug('processWorkItem - no workItem ')
+//     return;
+//   }
+
+//   winston.debug('calling processTransaction')
+//   processTransaction(workItem.txHash).then(function (result) {
+//     winston.debug(`Transaction ${workItem.txHash} processed successfully.`);
+//     processWorkItem(queue.shift());
+//   }, function (err) {
+//     winston.error(err);
+//     var next = queue.shift();
+//     queue.push(workItem);
+//     processWorkItem(next);
+//   });
+// }
+
+// function queueTransaction(block, txHash) {
+//   var workItem = {
+//     block: block,
+//     txHash: txHash
+//   }
+
+//   if (queue === undefined) {
+//     queue = [workItem];
+//   } else {
+//     queue.push(workItem);
+//   }
+// }
 
 
 function configureLogging() {
