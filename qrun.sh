@@ -1,0 +1,1 @@
+./runGeth.sh &>geth.log
