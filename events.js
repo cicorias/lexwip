@@ -16,11 +16,12 @@ const provider = new Web3.providers.HttpProvider(host)
 
 const web3 = new Web3(provider);
 
+const eventName = 'updateContract';
 
 var filterOptions = {
-  fromBlock:17171, toBlock: 'latest',
+  fromBlock: 20728, toBlock: 'latest',
   topics: [
-    web3.sha3('updateContract(string)')
+    web3.sha3(`${eventName}(string)`)
   ]
 }
 
@@ -28,16 +29,21 @@ var filterOptions = {
 var filter = web3.eth.filter(filterOptions);
 
 // watch for changes
-filter.watch(function (error, result) {
+filter.watch(function (error, logs) {
   if (error) {
     console.error("Error: %s", error.message)
     // console.error("Stack: %s", error.stack)
   }
   else {
-    console.log("New Block: %s", JSON.stringify(result));
-    return processTransaction(result.transactionHash);
+    console.log("New Log: %s", JSON.stringify(logs));
+    return processLog(logs);
   }
 });
+
+function processLog(logs){
+  var rv = logParser(logs, ssAbi);
+  return rv;
+}
 
 
 function processWorkItem(workItem) {
@@ -59,15 +65,36 @@ function processWorkItem(workItem) {
 
 
 // XXX move this to a hook function
-var SolidityEvent = require("web3/lib/web3/event.js");
+const SolidityEvent = require("web3/lib/web3/event.js");
 
-function logRead(obj, abi){
-  var events = abi.filter(function (json){
-    return json.type === 'event';
-  }).map(function (json){
-    winston.debug('mapping %s', json.name)
-    return new SolidityEvent(null, json, null);
+function logRead(obj, eventName, abi) {
+  var events = abi.filter(function (json) {
+    return json.type === 'event' && json.name === eventName;
+  }).map(function (json) {
+    winston.debug('mapping %s', json.name);
+    var solEvent = new SolidityEvent(null, json, null);
+    if (solEvent)
+      return solEvent;
   })
+  return events;
+}
+
+
+function logParser(log, abi) {
+
+  // pattern similar to lib/web3/contract.js:  addEventsToContract()
+  var decoders = abi.filter(function (json) {
+    return json.type === 'event';
+  }).map(function (json) {
+    // note first and third params required only by enocde and execute;
+    // so don't call those!
+    return new SolidityEvent(null, json, null);
+  }); //ss
+
+    return decoders.find(function (decoder) {
+      return (decoder.signature() == log.topics[0].replace("0x", ""));
+    }).decode(log);
+  
 }
 
 function processTransaction(txHash) {
@@ -82,11 +109,12 @@ function processTransaction(txHash) {
       winston.debug('doing the log read')
       var tx = web3.eth.getTransaction(txHash);
       winston.debug('TX: ', tx);
-      var evt = logRead(tx, ssAbi);//.then(function(r){
+      var evt = logRead(tx, eventName, ssAbi);//.then(function(r){
+      var decoded = logParser()
       //   console.log(r);
       // });
-      winston.debug(JSON.parse(v))
-      winston.debug ('end of logread')
+      winston.debug('the event: %s', evt)
+      winston.debug('end of logread')
       // TODO: end
 
       //If specified, this is a new contract deployment, otherwise, it is a contract update
@@ -206,24 +234,4 @@ function configureLogging() {
     timestamp: false
   });
   winston.warn('log level set to %s', winston.level);
-}
-
-
-
-function logParser (logs, abi) {
-
-    // pattern similar to lib/web3/contract.js:  addEventsToContract()
-    var decoders = abi.filter(function (json) {
-        return json.type === 'event';
-    }).map(function(json) {
-        // note first and third params required only by enocde and execute;
-        // so don't call those!
-        return new SolidityEvent(null, json, null);
-    });
-
-    return logs.map(function (log) {
-        return decoders.find(function(decoder) {
-            return (decoder.signature() == log.topics[0].replace("0x",""));
-        }).decode(log);
-    })
 }
