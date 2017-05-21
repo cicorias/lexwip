@@ -21,10 +21,14 @@ const eventNameSignatureHash = web3.sha3('updateContract(string)');
 console.log("looking for: %s", eventNameSignatureHash)
 
 var filterOptions = {
-  fromBlock: 21384, toBlock: 'latest',
+  fromBlock: 'latest', 
   topics: [
     eventNameSignatureHash
   ]
+}
+
+var filterOptions2 = {
+  fromBlock: 'latest'
 }
 
 // var filterOptions = {
@@ -33,6 +37,7 @@ var filterOptions = {
 
 // var filter = web3.eth.filter();
 var filter = web3.eth.filter(filterOptions);
+var filter2 = web3.eth.filter('latest');
 
 // watch for changes
 filter.watch(function (error, logs) {
@@ -41,10 +46,27 @@ filter.watch(function (error, logs) {
     // console.error("Stack: %s", error.stack)
   }
   else {
-    console.log("New Log: %s", JSON.stringify(logs));
+    winston.debug("New Log: %s", JSON.stringify(logs));
     var rv = processLog(logs);
-    console.log("event: %s:", rv.event)
-    console.log("args : %s:", JSON.stringify(rv.args))
+    winston.debug("rv: %s", JSON.stringify(rv))
+    winston.debug("event: %s:", rv.event)
+    winston.debug("args : %s:", JSON.stringify(rv.args))
+    winston.debug("=============================\n\n\n")
+  }
+});
+
+filter2.watch(function (error, logs) {
+  if (error) {
+    console.error("Error: %s", error.message)
+    // console.error("Stack: %s", error.stack)
+  }
+  else {
+    winston.debug("2New Log: %s", JSON.stringify(logs));
+    //var rv = processLog(logs);
+    //winston.debug("2rv: %s", JSON.stringify(rv))
+    //winston.debug("2event: %s:", rv.event)
+    //winston.debug("2args : %s:", JSON.stringify(rv.args))
+    winston.debug("2=============================\n\n\n")
   }
 });
 

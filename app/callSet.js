@@ -13,13 +13,10 @@ const HttpHeaderProvider = require('httpheaderprovider');
 const provider = new Web3.providers.HttpProvider(host)
 const web3 = new Web3(provider);
 
-SimpleStorage.setProvider(web3.currentProvider);
-Nested.setProvider(web3.currentProvider);
-
 var accounts = web3.eth.accounts;
 var account = accounts[0];
 
-var storage;
+SimpleStorage.setProvider(web3.currentProvider);
 
 SimpleStorage.defaults({
    from: account, 
@@ -29,27 +26,18 @@ SimpleStorage.defaults({
 
 
 
-SimpleStorage.new(1).then(function (instance) {
-  storage = instance;
-  console.log('contract address: %s', instance.address);
-  return storage.set(42);
-}).then(function (s) {
-  console.log("s: %s", JSON.stringify(s))
-  return storage.getNested1.call();
-}).then(function(result){
-  Nested.at(result).then(function(instance){
-    console.log('Nested addrr: %s', result);
-    return instance.getState.call();
-  }).then(function(val){
-    console.log("value at getState1: %s", val);
-  })
+//0xcd3350784d2978bd29d5fa5625d5cc3f5f006beb
+var meta;
+SimpleStorage.at('0x26ba76600529feef3282c4848803e0150b4189da').then(function (instance) {
+  meta = instance;
+  return meta.getNested1.call();
+}).then(function(val){
+  console.log("getNested1: %s", val);
+  return meta.set(99);
+}).then(function (result) {
+  console.log("Result: %s", JSON.stringify(result))
 }).catch(function (e) {
   console.error('trapped')
   console.error(e);
+
 });
-
-
-// })
-//   var rv = instance.call.getNested1()
-//   console.log("rv: %s", JSON.stringify(rv))
-//   console.log("Transaction complete!");

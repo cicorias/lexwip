@@ -1,0 +1,11 @@
+new SimpleStorage
+NestedConstructor
+NestedFunction
+SimpleStorageConstructor
+
+
+
+NestedFunction
+SimpleStorageFunction1
+NestedConstructor
+SimpleStorageFunction2
