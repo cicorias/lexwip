@@ -1,1 +1,5 @@
-./geth  attach ipc:/Users/cicorias/tmp/Lexington/spc/data/geth.ipc
+#!/usr/bin/env bash
+
+DIR=$(pwd)
+
+./geth  attach ipc:$DIR/data/geth.ipc

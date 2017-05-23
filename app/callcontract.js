@@ -6,7 +6,6 @@ const contract = require('truffle-contract');
 const SimpleStorage = contract(simplestorage_json);
 const Nested = contract(nested_json);
 
-// const host = 'http://13.64.236.113:8545'
 const host = 'http://localhost:8545'
 const Web3 = require('web3')
 const HttpHeaderProvider = require('httpheaderprovider');
